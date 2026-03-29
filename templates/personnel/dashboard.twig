@@ -1,0 +1,196 @@
+{% extends 'layouts/app.twig' %}
+
+{% block title %}Dashboard — {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+
+    {# ── Header ── #}
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1">Welcome, {{ user.full_name }}</h2>
+            <span class="badge bg-info text-dark">Personnel</span>
+        </div>
+        <a href="/requests/new" class="btn btn-primary">
+            <i class="fas fa-plus-circle me-1"></i> New Request
+        </a>
+    </div>
+
+    {# ── Stats Cards ── #}
+    {% set counts = dashboard.request_counts %}
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-md-3">
+            <div class="card text-center h-100">
+                <div class="card-body">
+                    <div class="fs-2 fw-bold text-secondary">{{ counts.draft|default(0) }}</div>
+                    <small class="text-muted">Drafts</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card text-center h-100">
+                <div class="card-body">
+                    <div class="fs-2 fw-bold text-primary">{{ counts.submitted|default(0) + counts.in_review|default(0) }}</div>
+                    <small class="text-muted">Pending</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card text-center h-100">
+                <div class="card-body">
+                    <div class="fs-2 fw-bold text-success">{{ counts.approved|default(0) }}</div>
+                    <small class="text-muted">Approved</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card text-center h-100">
+                <div class="card-body">
+                    <div class="fs-2 fw-bold text-info">{{ counts.completed|default(0) }}</div>
+                    <small class="text-muted">Completed</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+
+        {# ── Left: Recent Requests ── #}
+        <div class="col-lg-8">
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-clock me-1"></i> Recent Requests</h5>
+                    <a href="/requests" class="btn btn-sm btn-outline-primary">View All</a>
+                </div>
+                <div class="card-body p-0">
+                    {% if dashboard.recent_requests is not empty %}
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Title</th>
+                                        <th>Type</th>
+                                        <th>Status</th>
+                                        <th>Date</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for req in dashboard.recent_requests %}
+                                        <tr>
+                                            <td><a href="/requests/{{ req.id }}">#{{ req.id }}</a></td>
+                                            <td>{{ req.title }}</td>
+                                            <td><span class="badge bg-secondary">{{ req.type|capitalize }}</span></td>
+                                            <td>
+                                                {% set sc = {'draft':'bg-secondary','submitted':'bg-primary','in_review':'bg-warning text-dark','approved':'bg-success','rejected':'bg-danger','completed':'bg-info','cancelled':'bg-secondary'} %}
+                                                <span class="badge {{ sc[req.status]|default('bg-secondary') }}">{{ req.status|replace({'_': ' '})|capitalize }}</span>
+                                            </td>
+                                            <td><small>{{ req.created_at|date('M d, Y') }}</small></td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-4 text-muted">
+                            <i class="fas fa-inbox fa-2x mb-2"></i>
+                            <p>No requests yet. <a href="/requests/new">Create your first request</a>.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            {# ── Request Status Chart ── #}
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-chart-pie me-1"></i> My Requests by Status</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="statusChart" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+
+        {# ── Right Sidebar ── #}
+        <div class="col-lg-4">
+
+            {# Messages card #}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-envelope me-1"></i> Messages</h5>
+                </div>
+                <div class="card-body text-center">
+                    <div class="fs-2 fw-bold {{ dashboard.unread_messages > 0 ? 'text-danger' : 'text-muted' }}">
+                        {{ dashboard.unread_messages }}
+                    </div>
+                    <small class="text-muted">Unread Messages</small>
+                    <div class="mt-3">
+                        <a href="/messages" class="btn btn-sm btn-outline-primary">Go to Inbox</a>
+                    </div>
+                </div>
+            </div>
+
+            {# Quick actions #}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-bolt me-1"></i> Quick Actions</h5>
+                </div>
+                <div class="list-group list-group-flush">
+                    <a href="/requests/new" class="list-group-item list-group-item-action">
+                        <i class="fas fa-plus-circle me-2 text-primary"></i> Submit New Request
+                    </a>
+                    <a href="/requests" class="list-group-item list-group-item-action">
+                        <i class="fas fa-list me-2 text-info"></i> View My Requests
+                    </a>
+                    <a href="/messages/new" class="list-group-item list-group-item-action">
+                        <i class="fas fa-pen me-2 text-success"></i> New Message
+                    </a>
+                </div>
+            </div>
+
+            {# Activity feed #}
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-history me-1"></i> Recent Activity</h5>
+                </div>
+                <div class="card-body">
+                    {% include 'components/activity-feed.twig' with {'activities': dashboard.recent_activity} %}
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var counts = {{ dashboard.request_counts|json_encode|raw }};
+    var labels = [];
+    var data = [];
+    var colors = {
+        'draft': '#6c757d', 'submitted': '#0d6efd', 'in_review': '#ffc107',
+        'approved': '#198754', 'rejected': '#dc3545', 'completed': '#0dcaf0', 'cancelled': '#adb5bd'
+    };
+    var bgColors = [];
+
+    for (var key in counts) {
+        if (counts[key] > 0) {
+            labels.push(key.replace('_', ' ').replace(/\b\w/g, function(l) { return l.toUpperCase(); }));
+            data.push(counts[key]);
+            bgColors.push(colors[key] || '#6c757d');
+        }
+    }
+
+    if (data.length > 0) {
+        new Chart(document.getElementById('statusChart'), {
+            type: 'doughnut',
+            data: { labels: labels, datasets: [{ data: data, backgroundColor: bgColors }] },
+            options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+        });
+    }
+});
+</script>
+{% endblock %}

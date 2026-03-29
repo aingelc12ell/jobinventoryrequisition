@@ -1,0 +1,45 @@
+{# ──────────────────────────────────────────────────────────────────────────────
+   Flash Message Component
+   Renders dismissible Bootstrap 5 alerts with auto-dismiss.
+   Supports both keyed format (type => [messages]) and flat format ([{type, message}]).
+   ────────────────────────────────────────────────────────────────────────────── #}
+
+{# Map flash types to Bootstrap alert classes and Font Awesome icons #}
+{% set type_map = {
+    'success': { 'class': 'alert-success', 'icon': 'fa-circle-check'   },
+    'error':   { 'class': 'alert-danger',  'icon': 'fa-circle-xmark'   },
+    'danger':  { 'class': 'alert-danger',  'icon': 'fa-circle-xmark'   },
+    'info':    { 'class': 'alert-info',    'icon': 'fa-circle-info'    },
+    'warning': { 'class': 'alert-warning', 'icon': 'fa-triangle-exclamation' }
+} %}
+
+{% if flash is defined and flash %}
+    {% for item in flash %}
+        {% if item is iterable and item.type is defined %}
+            {# Flat format: [{type: 'success', message: '...'}] #}
+            {% set alert_type = type_map[item.type]|default(type_map['info']) %}
+            <div class="alert {{ alert_type.class }} alert-dismissible fade show d-flex align-items-center flash-auto-dismiss"
+                 role="alert">
+                <i class="fas {{ alert_type.icon }} me-2 flex-shrink-0" aria-hidden="true"></i>
+                <div>{{ item.message }}</div>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% else %}
+            {# Keyed format: {type: [message1, message2]} — iterate sub-messages #}
+            {% set outer_loop = loop %}
+            {% for type, messages in {(outer_loop.index0): item} %}
+                {% if messages is iterable %}
+                    {% for message in messages %}
+                        {% set alert_type = type_map[type]|default(type_map['info']) %}
+                        <div class="alert {{ alert_type.class }} alert-dismissible fade show d-flex align-items-center flash-auto-dismiss"
+                             role="alert">
+                            <i class="fas {{ alert_type.icon }} me-2 flex-shrink-0" aria-hidden="true"></i>
+                            <div>{{ message }}</div>
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endfor %}
+        {% endif %}
+    {% endfor %}
+{% endif %}

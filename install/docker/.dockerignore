@@ -1,0 +1,9 @@
+# Build context is install/docker/ — only Dockerfile, php.ini, nginx.conf needed.
+# This file prevents accidental inclusion of host files if context is widened.
+.git
+.env
+*.md
+vendor
+storage
+node_modules
+tests

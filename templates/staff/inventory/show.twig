@@ -1,0 +1,260 @@
+{% extends 'layouts/app.twig' %}
+
+{% block title %}{{ item.name }}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+
+    {# ── Page Header ── #}
+    <div class="row mb-4">
+        <div class="col">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2>{{ item.name }}</h2>
+                <div class="d-flex gap-2">
+                    <a href="/staff/inventory/{{ item.id }}/edit" class="btn btn-outline-primary">
+                        <i class="fas fa-edit me-1"></i> Edit
+                    </a>
+                    <a href="/staff/inventory" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-1"></i> Back to Catalog
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# ── Two-Column Layout ── #}
+    <div class="row g-4">
+
+        {# ══════════════════════════════════════════════════════════════════════
+           LEFT COLUMN — Details & Adjustment
+           ══════════════════════════════════════════════════════════════════════ #}
+        <div class="col-lg-7">
+
+            {# ── Item Details Card ── #}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Item Details</h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-3">
+                        {% if item.description %}
+                            {{ item.description }}
+                        {% else %}
+                            <span class="text-muted">No description</span>
+                        {% endif %}
+                    </p>
+
+                    <div class="row">
+                        <div class="col-sm-6">
+                            <dl>
+                                <dt>SKU</dt>
+                                <dd>{{ item.sku|default('') ? item.sku : '<span class="text-muted">&mdash;</span>'|raw }}</dd>
+
+                                <dt>Category</dt>
+                                <dd>{{ item.category|default('') ? item.category : '<span class="text-muted">&mdash;</span>'|raw }}</dd>
+
+                                <dt>Unit</dt>
+                                <dd>{{ item.unit }}</dd>
+
+                                <dt>Status</dt>
+                                <dd>
+                                    {% if item.is_active %}
+                                        <span class="badge bg-success">Active</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Inactive</span>
+                                    {% endif %}
+                                </dd>
+                            </dl>
+                        </div>
+                        <div class="col-sm-6">
+                            <dl>
+                                <dt>Location</dt>
+                                <dd>{{ item.location|default('') ? item.location : '<span class="text-muted">&mdash;</span>'|raw }}</dd>
+
+                                <dt>Created</dt>
+                                <dd>{{ item.created_at|date("M d, Y") }}</dd>
+
+                                <dt>Updated</dt>
+                                <dd>{{ item.updated_at|date("M d, Y") }}</dd>
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {# ── Stock Adjustment Card ── #}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Stock Adjustment</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="/staff/inventory/{{ item.id }}/adjust">
+                        {{ csrf_fields|raw }}
+
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Type</label>
+                            <div class="btn-group w-100" role="group" aria-label="Adjustment type">
+                                <input type="radio" class="btn-check" name="type" id="type-in"
+                                       value="in" autocomplete="off" checked>
+                                <label class="btn btn-outline-success" for="type-in">
+                                    <i class="fas fa-arrow-down me-1"></i> Stock In
+                                </label>
+
+                                <input type="radio" class="btn-check" name="type" id="type-out"
+                                       value="out" autocomplete="off">
+                                <label class="btn btn-outline-danger" for="type-out">
+                                    <i class="fas fa-arrow-up me-1"></i> Stock Out
+                                </label>
+
+                                <input type="radio" class="btn-check" name="type" id="type-adjustment"
+                                       value="adjustment" autocomplete="off">
+                                <label class="btn btn-outline-warning" for="type-adjustment">
+                                    <i class="fas fa-equals me-1"></i> Set Exact
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-4">
+                                <label for="quantity" class="form-label fw-semibold">Quantity</label>
+                                <input type="number" class="form-control" id="quantity" name="quantity"
+                                       min="1" required>
+                            </div>
+                            <div class="col-md-8">
+                                <label for="notes" class="form-label fw-semibold">Notes</label>
+                                <input type="text" class="form-control" id="notes" name="notes"
+                                       placeholder="Reason for adjustment...">
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-sync-alt me-1"></i> Update Stock
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+        </div>
+
+        {# ══════════════════════════════════════════════════════════════════════
+           RIGHT COLUMN — Stock Level & History
+           ══════════════════════════════════════════════════════════════════════ #}
+        <div class="col-lg-5">
+
+            {# ── Stock Level Card ── #}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Stock Level</h5>
+                </div>
+                <div class="card-body text-center">
+                    <div class="stat-number display-3 fw-bold mb-1">{{ item.quantity_in_stock }}</div>
+                    <div class="text-muted mb-3">{{ item.unit }}</div>
+
+                    {% if item.reorder_level > 0 %}
+                        {# Calculate progress bar color and width #}
+                        {% set stock_ratio = item.quantity_in_stock / item.reorder_level %}
+                        {% set bar_width = ((item.quantity_in_stock / (item.reorder_level * 3)) * 100) %}
+                        {% if bar_width > 100 %}
+                            {% set bar_width = 100 %}
+                        {% endif %}
+
+                        {% if stock_ratio <= 1 %}
+                            {% set bar_color = 'bg-danger' %}
+                        {% elseif stock_ratio <= 2 %}
+                            {% set bar_color = 'bg-warning' %}
+                        {% else %}
+                            {% set bar_color = 'bg-success' %}
+                        {% endif %}
+
+                        <div class="progress mb-2" style="height: 10px;">
+                            <div class="progress-bar {{ bar_color }}" role="progressbar"
+                                 style="width: {{ bar_width }}%"
+                                 aria-valuenow="{{ item.quantity_in_stock }}"
+                                 aria-valuemin="0"
+                                 aria-valuemax="{{ item.reorder_level * 3 }}">
+                            </div>
+                        </div>
+
+                        <small class="text-muted">Reorder at: {{ item.reorder_level }}</small>
+
+                        {% if item.quantity_in_stock <= item.reorder_level %}
+                            <div class="alert alert-warning mt-3 mb-0 py-2">
+                                <i class="fas fa-triangle-exclamation me-1"></i>
+                                Stock is at or below reorder level!
+                            </div>
+                        {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+
+            {# ── Transaction History Card ── #}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Transaction History</h5>
+                </div>
+                <div class="card-body">
+                    {% if transactions is defined and transactions is not empty %}
+                        <div class="table-responsive">
+                            <table class="table table-sm mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Type</th>
+                                        <th>Qty</th>
+                                        <th>By</th>
+                                        <th>Notes</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for transaction in transactions %}
+                                        <tr>
+                                            <td class="small">{{ transaction.created_at|date("M d, Y g:ia") }}</td>
+                                            <td>
+                                                {% if transaction.type == 'in' %}
+                                                    <span class="badge bg-success">IN</span>
+                                                {% elseif transaction.type == 'out' %}
+                                                    <span class="badge bg-danger">OUT</span>
+                                                {% elseif transaction.type == 'adjustment' %}
+                                                    <span class="badge bg-warning text-dark">ADJ</span>
+                                                {% else %}
+                                                    <span class="badge bg-secondary">{{ transaction.type|upper }}</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if transaction.type == 'in' %}
+                                                    <span class="text-success">+{{ transaction.quantity }}</span>
+                                                {% elseif transaction.type == 'out' %}
+                                                    <span class="text-danger">-{{ transaction.quantity }}</span>
+                                                {% elseif transaction.type == 'adjustment' %}
+                                                    <span class="text-warning">={{ transaction.quantity }}</span>
+                                                {% else %}
+                                                    {{ transaction.quantity }}
+                                                {% endif %}
+                                            </td>
+                                            <td class="small">{{ transaction.performed_by_name }}</td>
+                                            <td class="small">
+                                                {% if transaction.notes %}
+                                                    {{ transaction.notes|length > 40 ? transaction.notes|slice(0, 40) ~ '...' : transaction.notes }}
+                                                {% elseif transaction.reference %}
+                                                    <span class="text-muted">{{ transaction.reference }}</span>
+                                                {% else %}
+                                                    <span class="text-muted">&mdash;</span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p class="text-muted mb-0">No transactions yet.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+{% endblock %}

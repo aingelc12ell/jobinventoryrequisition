@@ -1,0 +1,163 @@
+{% extends 'layouts/app.twig' %}
+
+{% block title %}Inventory Catalog{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+
+    {# ── Page Header ── #}
+    <div class="row mb-4">
+        <div class="col">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2>Inventory Catalog</h2>
+                <div class="d-flex gap-2">
+                    <a href="/staff/inventory/batch" class="btn btn-outline-success">
+                        <i class="fas fa-layer-group me-1"></i> Batch Operations
+                    </a>
+                    <a href="/staff/inventory/new" class="btn btn-primary">
+                        <i class="fas fa-plus me-1"></i> Add Item
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# ── Low Stock Alert Banner ── #}
+    {% if low_stock_count is defined and low_stock_count > 0 %}
+        <div class="alert alert-warning d-flex align-items-center mb-4" role="alert">
+            <i class="fas fa-triangle-exclamation me-2"></i>
+            <div>
+                <strong>{{ low_stock_count }}</strong> item(s) below reorder level.
+                <a href="/staff/inventory?low_stock=1" class="alert-link">View low stock items</a>
+            </div>
+        </div>
+    {% endif %}
+
+    {# ── Filter Bar ── #}
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="GET" action="/staff/inventory">
+                <div class="row g-2 align-items-end">
+                    <div class="col-md-3">
+                        <label for="filter-category" class="form-label">Category</label>
+                        <select id="filter-category" name="category" class="form-select form-select-sm">
+                            <option value="">All Categories</option>
+                            {% for category in categories %}
+                                <option value="{{ category }}" {{ filters.category|default('') == category ? 'selected' : '' }}>
+                                    {{ category }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="filter-search" class="form-label">Search</label>
+                        <input type="text" id="filter-search" name="search" class="form-control form-control-sm"
+                               placeholder="Search items..." value="{{ filters.search|default('') }}">
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-check mt-4">
+                            <input class="form-check-input" type="checkbox" id="filter-low-stock"
+                                   name="low_stock" value="1" {{ filters.low_stock is defined and filters.low_stock ? 'checked' : '' }}>
+                            <label class="form-check-label" for="filter-low-stock">Low stock only</label>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <button type="submit" class="btn btn-sm btn-primary">
+                            <i class="fas fa-filter"></i> Filter
+                        </button>
+                        <a href="/staff/inventory" class="btn btn-sm btn-link">Clear</a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {# ── Inventory Items Table ── #}
+    <div class="card">
+        <div class="table-responsive">
+            <table class="table table-hover table-striped mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>#</th>
+                        <th>Name</th>
+                        <th>SKU</th>
+                        <th>Category</th>
+                        <th>Stock</th>
+                        <th>Unit</th>
+                        <th>Reorder Level</th>
+                        <th>Location</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if items is empty %}
+                        <tr>
+                            <td colspan="10" class="text-center text-muted py-4">No inventory items found.</td>
+                        </tr>
+                    {% else %}
+                        {% for item in items %}
+                            <tr>
+                                <td>{{ item.id }}</td>
+                                <td>
+                                    <a href="/staff/inventory/{{ item.id }}">{{ item.name }}</a>
+                                </td>
+                                <td>
+                                    {% if item.sku %}
+                                        {{ item.sku }}
+                                    {% else %}
+                                        <span class="text-muted">&mdash;</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if item.category %}
+                                        {{ item.category }}
+                                    {% else %}
+                                        <span class="text-muted">&mdash;</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if item.reorder_level > 0 and item.quantity_in_stock <= item.reorder_level %}
+                                        <span class="text-danger fw-bold">
+                                            {{ item.quantity_in_stock }}
+                                            <i class="fas fa-triangle-exclamation ms-1"></i>
+                                        </span>
+                                    {% else %}
+                                        {{ item.quantity_in_stock }}
+                                    {% endif %}
+                                </td>
+                                <td>{{ item.unit }}</td>
+                                <td>{{ item.reorder_level }}</td>
+                                <td>
+                                    {% if item.location %}
+                                        {{ item.location }}
+                                    {% else %}
+                                        <span class="text-muted">&mdash;</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if item.is_active %}
+                                        <span class="badge bg-success">Active</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Inactive</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <a href="/staff/inventory/{{ item.id }}" class="btn btn-sm btn-outline-primary">View</a>
+                                    <a href="/staff/inventory/{{ item.id }}/edit" class="btn btn-sm btn-outline-secondary">Edit</a>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    {# ── Pagination ── #}
+    <div class="mt-3">
+        {% include 'components/pagination.twig' with {current_page: current_page, total_pages: total_pages, base_url: '/staff/inventory'} %}
+    </div>
+
+</div>
+{% endblock %}

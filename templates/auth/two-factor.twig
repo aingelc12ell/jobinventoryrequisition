@@ -1,0 +1,53 @@
+{% extends 'layouts/app.twig' %}
+
+{% block title %}Verify Identity{% endblock %}
+
+{% block styles %}
+<style>
+    .code-input {
+        letter-spacing: 0.5em;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center mt-5">
+    <div class="col-md-6 col-lg-4 mx-auto">
+        <div class="card shadow-sm">
+            <div class="card-header text-center">
+                <h4 class="mb-0">Two-Factor Authentication</h4>
+            </div>
+            <div class="card-body">
+                <p class="text-muted mb-4">We've sent a verification code to your email. Please enter it below.</p>
+
+                <form method="POST" action="/2fa/verify">
+                    {{ csrf_fields|raw }}
+
+                    <div class="mb-3">
+                        <label for="code" class="form-label">Verification Code</label>
+                        <input type="text"
+                               class="form-control text-center fs-3 code-input"
+                               id="code"
+                               name="code"
+                               required
+                               autofocus
+                               maxlength="6"
+                               pattern="[0-9]{6}"
+                               inputmode="numeric"
+                               autocomplete="one-time-code"
+                               placeholder="000000">
+                    </div>
+
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary">Verify</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="text-center mt-3">
+            <span>Didn't receive a code?</span> <a href="/login">Back to login</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

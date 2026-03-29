@@ -1,0 +1,296 @@
+{% extends 'layouts/app.twig' %}
+
+{% block title %}Admin Dashboard — {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+
+    {# ── Header ── #}
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1">Welcome, {{ user.full_name }}</h2>
+            <span class="badge bg-danger">Administrator</span>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="/staff/requests/export?format=csv" class="btn btn-outline-success">
+                <i class="fas fa-file-csv me-1"></i> Export CSV
+            </a>
+            <a href="/admin/users" class="btn btn-primary">
+                <i class="fas fa-users-cog me-1"></i> Manage Users
+            </a>
+        </div>
+    </div>
+
+    {# ── Top Stats Row ── #}
+    {% set sc = dashboard.status_counts %}
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-md-2">
+            <div class="card text-center h-100">
+                <div class="card-body py-3">
+                    <div class="fs-3 fw-bold text-secondary">{{ dashboard.total_requests }}</div>
+                    <small class="text-muted">Total Requests</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-2">
+            <div class="card text-center h-100 border-primary">
+                <div class="card-body py-3">
+                    <div class="fs-3 fw-bold text-primary">{{ (sc.submitted|default(0)) + (sc.in_review|default(0)) }}</div>
+                    <small class="text-muted">Pending</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-2">
+            <div class="card text-center h-100">
+                <div class="card-body py-3">
+                    <div class="fs-3 fw-bold text-success">{{ sc.completed|default(0) }}</div>
+                    <small class="text-muted">Completed</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-2">
+            <div class="card text-center h-100">
+                <div class="card-body py-3">
+                    <div class="fs-3 fw-bold text-info">{{ dashboard.avg_turnaround ? dashboard.avg_turnaround ~ 'h' : 'N/A' }}</div>
+                    <small class="text-muted">Avg Turnaround</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-2">
+            <div class="card text-center h-100">
+                <div class="card-body py-3">
+                    {% set total_users = 0 %}
+                    {% for role, cnt in dashboard.user_counts %}
+                        {% set total_users = total_users + cnt %}
+                    {% endfor %}
+                    <div class="fs-3 fw-bold text-secondary">{{ total_users }}</div>
+                    <small class="text-muted">Active Users</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-2">
+            <div class="card text-center h-100 {{ dashboard.inventory_alerts|length > 0 ? 'border-danger' : '' }}">
+                <div class="card-body py-3">
+                    <div class="fs-3 fw-bold {{ dashboard.inventory_alerts|length > 0 ? 'text-danger' : 'text-muted' }}">{{ dashboard.inventory_alerts|length }}</div>
+                    <small class="text-muted">Low Stock</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+
+        {# ── Left Column ── #}
+        <div class="col-lg-8">
+
+            {# Request Volume Line Chart #}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-chart-line me-1"></i> Request Volume (Last 30 Days)</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="volumeChart" height="160"></canvas>
+                </div>
+            </div>
+
+            {# Charts Row #}
+            <div class="row g-4 mb-4">
+                <div class="col-md-4">
+                    <div class="card h-100">
+                        <div class="card-header"><h6 class="mb-0">By Priority</h6></div>
+                        <div class="card-body"><canvas id="priorityChart" height="200"></canvas></div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card h-100">
+                        <div class="card-header"><h6 class="mb-0">By Type</h6></div>
+                        <div class="card-body"><canvas id="typeChart" height="200"></canvas></div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card h-100">
+                        <div class="card-header"><h6 class="mb-0">Users by Role</h6></div>
+                        <div class="card-body"><canvas id="userChart" height="200"></canvas></div>
+                    </div>
+                </div>
+            </div>
+
+            {# Recent Submissions #}
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-inbox me-1"></i> Recent Submissions</h5>
+                    <a href="/staff/requests" class="btn btn-sm btn-outline-primary">View All</a>
+                </div>
+                <div class="card-body p-0">
+                    {% if dashboard.recent_submissions is not empty %}
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Title</th>
+                                        <th>Submitter</th>
+                                        <th>Priority</th>
+                                        <th>Status</th>
+                                        <th>Date</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for req in dashboard.recent_submissions %}
+                                        <tr>
+                                            <td><a href="/staff/requests/{{ req.id }}">#{{ req.id }}</a></td>
+                                            <td>{{ req.title }}</td>
+                                            <td>{{ req.submitter_name|default('—') }}</td>
+                                            <td>
+                                                {% set pc = {'low':'bg-secondary','medium':'bg-info','high':'bg-warning text-dark','urgent':'bg-danger'} %}
+                                                <span class="badge {{ pc[req.priority]|default('bg-secondary') }}">{{ req.priority|capitalize }}</span>
+                                            </td>
+                                            <td>
+                                                {% set stc = {'draft':'bg-secondary','submitted':'bg-primary','in_review':'bg-warning text-dark','approved':'bg-success','rejected':'bg-danger','completed':'bg-info','cancelled':'bg-secondary'} %}
+                                                <span class="badge {{ stc[req.status]|default('bg-secondary') }}">{{ req.status|replace({'_': ' '})|capitalize }}</span>
+                                            </td>
+                                            <td><small>{{ req.created_at|date('M d') }}</small></td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-4 text-muted">No submissions yet.</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        {# ── Right Sidebar ── #}
+        <div class="col-lg-4">
+
+            {# Workload Distribution #}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-users me-1"></i> Workload Distribution</h6>
+                </div>
+                <div class="card-body">
+                    {% if dashboard.workload_by_assignee is not empty %}
+                        {% for entry in dashboard.workload_by_assignee %}
+                            <div class="d-flex justify-content-between mb-2">
+                                <span><a href="/profile/{{ entry.id }}">{{ entry.full_name }}</a></span>
+                                <span class="badge bg-primary rounded-pill">{{ entry.count }}</span>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted text-center mb-0">No assignments yet.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            {# Inventory Alerts #}
+            {% if dashboard.inventory_alerts is not empty %}
+                <div class="card mb-4 border-danger">
+                    <div class="card-header bg-danger text-white">
+                        <h6 class="mb-0"><i class="fas fa-exclamation-triangle me-1"></i> Low Stock Alerts</h6>
+                    </div>
+                    <div class="list-group list-group-flush">
+                        {% for item in dashboard.inventory_alerts|slice(0, 5) %}
+                            <a href="/staff/inventory/{{ item.id }}" class="list-group-item list-group-item-action list-group-item-warning">
+                                <div class="d-flex justify-content-between">
+                                    <span>{{ item.name }}</span>
+                                    <span class="badge bg-danger">{{ item.current_stock }} left</span>
+                                </div>
+                            </a>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% endif %}
+
+            {# Messages #}
+            <div class="card mb-4">
+                <div class="card-body text-center">
+                    <div class="fs-3 fw-bold {{ dashboard.unread_messages > 0 ? 'text-danger' : 'text-muted' }}">
+                        {{ dashboard.unread_messages }}
+                    </div>
+                    <small class="text-muted">Unread Messages</small>
+                    <div class="mt-2">
+                        <a href="/messages" class="btn btn-sm btn-outline-primary">Inbox</a>
+                    </div>
+                </div>
+            </div>
+
+            {# Activity Feed #}
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-history me-1"></i> Recent Activity</h6>
+                </div>
+                <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+                    {% include 'components/activity-feed.twig' with {'activities': dashboard.recent_activity} %}
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Volume line chart
+    var volumeData = {{ dashboard.request_volume|json_encode|raw }};
+    var vLabels = [], vData = [];
+    volumeData.forEach(function(d) {
+        vLabels.push(new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+        vData.push(d.count);
+    });
+    if (vLabels.length > 0) {
+        new Chart(document.getElementById('volumeChart'), {
+            type: 'line',
+            data: { labels: vLabels, datasets: [{ label: 'Requests', data: vData, borderColor: '#0d6efd', backgroundColor: 'rgba(13,110,253,0.1)', fill: true, tension: 0.3 }] },
+            options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+        });
+    }
+
+    // Priority bar chart
+    var priorityData = {{ dashboard.requests_by_priority|json_encode|raw }};
+    var pLabels = [], pData = [], pBg = [];
+    var pColors = { 'low': '#6c757d', 'medium': '#0dcaf0', 'high': '#ffc107', 'urgent': '#dc3545' };
+    ['urgent', 'high', 'medium', 'low'].forEach(function(p) {
+        if (priorityData[p]) { pLabels.push(p.charAt(0).toUpperCase() + p.slice(1)); pData.push(priorityData[p]); pBg.push(pColors[p]); }
+    });
+    if (pData.length > 0) {
+        new Chart(document.getElementById('priorityChart'), {
+            type: 'bar',
+            data: { labels: pLabels, datasets: [{ data: pData, backgroundColor: pBg }] },
+            options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+        });
+    }
+
+    // Type doughnut chart
+    var typeData = {{ dashboard.requests_by_type|json_encode|raw }};
+    var tLabels = [], tData = [], tBg = [];
+    var typeColors = ['#0d6efd', '#198754', '#ffc107', '#dc3545', '#6f42c1', '#0dcaf0'];
+    var i = 0;
+    for (var key in typeData) { tLabels.push(key.charAt(0).toUpperCase() + key.slice(1)); tData.push(typeData[key]); tBg.push(typeColors[i++ % typeColors.length]); }
+    if (tData.length > 0) {
+        new Chart(document.getElementById('typeChart'), {
+            type: 'doughnut',
+            data: { labels: tLabels, datasets: [{ data: tData, backgroundColor: tBg }] },
+            options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+        });
+    }
+
+    // Users by role pie chart
+    var userData = {{ dashboard.user_counts|json_encode|raw }};
+    var uLabels = [], uData = [], uBg = [];
+    var roleColors = { 'admin': '#dc3545', 'staff': '#ffc107', 'personnel': '#0dcaf0' };
+    for (var role in userData) { uLabels.push(role.charAt(0).toUpperCase() + role.slice(1)); uData.push(userData[role]); uBg.push(roleColors[role] || '#6c757d'); }
+    if (uData.length > 0) {
+        new Chart(document.getElementById('userChart'), {
+            type: 'pie',
+            data: { labels: uLabels, datasets: [{ data: uData, backgroundColor: uBg }] },
+            options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+        });
+    }
+});
+</script>
+{% endblock %}

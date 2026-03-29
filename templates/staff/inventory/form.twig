@@ -1,0 +1,145 @@
+{% extends 'layouts/app.twig' %}
+
+{% block title %}{{ mode == 'edit' ? 'Edit Item' : 'Add Inventory Item' }}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+
+    {# ── Page Header ── #}
+    <div class="row mb-4">
+        <div class="col">
+            <h2>{{ mode == 'edit' ? 'Edit Item' : 'Add Inventory Item' }}</h2>
+        </div>
+    </div>
+
+    {# ── Item Form ── #}
+    <div class="card">
+        <div class="card-body">
+            <form method="POST"
+                  action="{{ mode == 'edit' ? '/staff/inventory/' ~ item.id : '/staff/inventory' }}">
+
+                {% if mode == 'edit' %}
+                    <input type="hidden" name="_METHOD" value="PUT">
+                {% endif %}
+
+                {{ csrf_fields|raw }}
+
+                <div class="row">
+
+                    {# ══════════════════════════════════════════════════════════════
+                       LEFT COLUMN
+                       ══════════════════════════════════════════════════════════════ #}
+                    <div class="col-md-6">
+
+                        {# ── Name ── #}
+                        <div class="mb-3">
+                            <label for="name" class="form-label fw-semibold">Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="name" name="name"
+                                   required maxlength="255"
+                                   value="{{ old.name|default(item.name|default('')) }}">
+                        </div>
+
+                        {# ── SKU ── #}
+                        <div class="mb-3">
+                            <label for="sku" class="form-label fw-semibold">SKU</label>
+                            <input type="text" class="form-control" id="sku" name="sku"
+                                   maxlength="100"
+                                   value="{{ old.sku|default(item.sku|default('')) }}">
+                            <div class="form-text">Optional unique identifier</div>
+                        </div>
+
+                        {# ── Category ── #}
+                        <div class="mb-3">
+                            <label for="category" class="form-label fw-semibold">Category</label>
+                            <input type="text" class="form-control" id="category" name="category"
+                                   list="category-list"
+                                   value="{{ old.category|default(item.category|default('')) }}">
+                            <datalist id="category-list">
+                                {% for category in categories %}
+                                    <option value="{{ category }}">
+                                {% endfor %}
+                            </datalist>
+                        </div>
+
+                        {# ── Description ── #}
+                        <div class="mb-3">
+                            <label for="description" class="form-label fw-semibold">Description</label>
+                            <textarea class="form-control" id="description" name="description"
+                                      rows="3">{{ old.description|default(item.description|default('')) }}</textarea>
+                        </div>
+
+                    </div>
+
+                    {# ══════════════════════════════════════════════════════════════
+                       RIGHT COLUMN
+                       ══════════════════════════════════════════════════════════════ #}
+                    <div class="col-md-6">
+
+                        {# ── Unit ── #}
+                        <div class="mb-3">
+                            <label for="unit" class="form-label fw-semibold">Unit <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="unit" name="unit"
+                                   required placeholder="pcs, kg, liters, etc."
+                                   value="{{ old.unit|default(item.unit|default('pcs')) }}">
+                        </div>
+
+                        {# ── Initial Stock (create only) ── #}
+                        {% if mode != 'edit' %}
+                            <div class="mb-3">
+                                <label for="quantity_in_stock" class="form-label fw-semibold">Initial Stock</label>
+                                <input type="number" class="form-control" id="quantity_in_stock" name="quantity_in_stock"
+                                       min="0" value="{{ old.quantity_in_stock|default(0) }}">
+                            </div>
+                        {% endif %}
+
+                        {# ── Reorder Level ── #}
+                        <div class="mb-3">
+                            <label for="reorder_level" class="form-label fw-semibold">Reorder Level</label>
+                            <input type="number" class="form-control" id="reorder_level" name="reorder_level"
+                                   min="0" value="{{ old.reorder_level|default(item.reorder_level|default(0)) }}">
+                            <div class="form-text">Alert when stock drops to this level</div>
+                        </div>
+
+                        {# ── Location ── #}
+                        <div class="mb-3">
+                            <label for="location" class="form-label fw-semibold">Location</label>
+                            <input type="text" class="form-control" id="location" name="location"
+                                   placeholder="Warehouse, Shelf A3, etc."
+                                   value="{{ old.location|default(item.location|default('')) }}">
+                        </div>
+
+                        {# ── Active Status (edit only) ── #}
+                        {% if mode == 'edit' %}
+                            <div class="mb-3">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="is_active" name="is_active"
+                                           value="1" {{ old.is_active is defined ? (old.is_active ? 'checked' : '') : (item.is_active ? 'checked' : '') }}>
+                                    <label class="form-check-label fw-semibold" for="is_active">Active</label>
+                                </div>
+                            </div>
+                        {% endif %}
+
+                    </div>
+
+                </div>
+
+                <hr>
+
+                {# ── Action Buttons ── #}
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-1"></i> Save
+                    </button>
+                    {% if mode == 'edit' %}
+                        <a href="/staff/inventory/{{ item.id }}" class="btn btn-outline-secondary">Cancel</a>
+                    {% else %}
+                        <a href="/staff/inventory" class="btn btn-outline-secondary">Cancel</a>
+                    {% endif %}
+                </div>
+
+            </form>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

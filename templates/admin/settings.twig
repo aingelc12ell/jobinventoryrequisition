@@ -1,0 +1,119 @@
+{% extends 'layouts/app.twig' %}
+
+{% block title %}System Settings — {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+
+    <h2 class="mb-4"><i class="fas fa-cogs me-2"></i>System Settings</h2>
+
+    <form method="post" action="/admin/settings">
+        {{ csrf_fields|raw }}
+
+        <div class="row g-4">
+
+            {# ── General Settings ── #}
+            <div class="col-lg-6">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-globe me-1"></i> General</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="site_name" class="form-label">Site Name</label>
+                            <input type="text" name="site_name" id="site_name" class="form-control"
+                                   value="{{ settings.site_name|default('Job & Inventory Request System') }}"
+                                   maxlength="255">
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="items_per_page" class="form-label">Items Per Page</label>
+                            <input type="number" name="items_per_page" id="items_per_page" class="form-control"
+                                   value="{{ settings.items_per_page|default('20') }}"
+                                   min="5" max="100">
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="max_upload_size_mb" class="form-label">Max Upload Size (MB)</label>
+                            <input type="number" name="max_upload_size_mb" id="max_upload_size_mb" class="form-control"
+                                   value="{{ settings.max_upload_size_mb|default('10') }}"
+                                   min="1" max="50">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {# ── Request Settings ── #}
+            <div class="col-lg-6">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-clipboard me-1"></i> Requests</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="default_request_priority" class="form-label">Default Request Priority</label>
+                            <select name="default_request_priority" id="default_request_priority" class="form-select">
+                                {% set current_priority = settings.default_request_priority|default('medium') %}
+                                <option value="low" {{ current_priority == 'low' ? 'selected' : '' }}>Low</option>
+                                <option value="medium" {{ current_priority == 'medium' ? 'selected' : '' }}>Medium</option>
+                                <option value="high" {{ current_priority == 'high' ? 'selected' : '' }}>High</option>
+                                <option value="urgent" {{ current_priority == 'urgent' ? 'selected' : '' }}>Urgent</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox"
+                                       name="notification_email_enabled" id="notification_email_enabled"
+                                       {{ settings.notification_email_enabled|default('1') == '1' ? 'checked' : '' }}>
+                                <label class="form-check-label" for="notification_email_enabled">
+                                    Enable Email Notifications
+                                </label>
+                            </div>
+                            <div class="form-text">Send emails for request status changes, assignments, etc.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {# ── Maintenance Mode ── #}
+            <div class="col-12">
+                <div class="card mb-4 {{ settings.maintenance_mode|default('0') == '1' ? 'border-warning' : '' }}">
+                    <div class="card-header {{ settings.maintenance_mode|default('0') == '1' ? 'bg-warning text-dark' : '' }}">
+                        <h5 class="mb-0"><i class="fas fa-tools me-1"></i> Maintenance Mode</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox"
+                                       name="maintenance_mode" id="maintenance_mode"
+                                       {{ settings.maintenance_mode|default('0') == '1' ? 'checked' : '' }}>
+                                <label class="form-check-label" for="maintenance_mode">
+                                    Enable Maintenance Mode
+                                </label>
+                            </div>
+                            <div class="form-text text-warning">
+                                When enabled, only admin users can access the system. All other users will see the maintenance message.
+                            </div>
+                        </div>
+
+                        <div class="mb-0">
+                            <label for="maintenance_message" class="form-label">Maintenance Message</label>
+                            <textarea name="maintenance_message" id="maintenance_message" class="form-control" rows="3"
+                                      placeholder="The system is currently under maintenance. Please try again later.">{{ settings.maintenance_message|default('') }}</textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-save me-1"></i> Save Settings
+            </button>
+            <a href="/admin/dashboard" class="btn btn-outline-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

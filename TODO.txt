@@ -1,0 +1,8 @@
+
+- [DONE] Check for compatibility issues with latest dependencies
+- [DONE] Write a `README.md` that reflects the description and capabilties of the app
+
+- [DONE] Generate a script in `/cli` that will seed first admin user
+- [DONE] Generate a script in `/cli` that will seed random data that will utilize all events and functions. Data must be within a time frame
+
+- [DONE] Add a theme switcher for light/dark

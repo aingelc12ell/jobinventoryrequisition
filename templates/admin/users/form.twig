@@ -1,0 +1,266 @@
+{% extends 'layouts/app.twig' %}
+
+{% block title %}{{ mode == 'create' ? 'Create User' : 'Edit User' }} — {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+
+    <div class="mb-4">
+        <a href="/admin/users" class="text-decoration-none text-muted">
+            <i class="fas fa-arrow-left me-1"></i> Back to Users
+        </a>
+        <h2 class="mt-2">
+            <i class="fas {{ mode == 'create' ? 'fa-user-plus' : 'fa-user-edit' }} me-2"></i>
+            {{ mode == 'create' ? 'Create New User' : 'Edit User: ' ~ form_user.full_name }}
+        </h2>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-body">
+                    <form method="post"
+                          action="{{ mode == 'create' ? '/admin/users' : '/admin/users/' ~ form_user.id }}">
+                        {{ csrf_fields|raw }}
+                        {% if mode == 'edit' %}
+                            <input type="hidden" name="_METHOD" value="PUT">
+                        {% endif %}
+
+                        {# Full Name #}
+                        <div class="mb-3">
+                            <label for="full_name" class="form-label">Full Name <span class="text-danger">*</span></label>
+                            <input type="text" name="full_name" id="full_name" class="form-control"
+                                   value="{{ old.full_name|default(form_user.full_name|default('')) }}"
+                                   required maxlength="150">
+                        </div>
+
+                        {# Email #}
+                        <div class="mb-3">
+                            <label for="email" class="form-label">Email <span class="text-danger">*</span></label>
+                            <input type="email" name="email" id="email" class="form-control"
+                                   value="{{ old.email|default(form_user.email|default('')) }}"
+                                   required maxlength="255">
+                        </div>
+
+                        {# Role #}
+                        <div class="mb-3">
+                            <label for="role" class="form-label">Role <span class="text-danger">*</span></label>
+                            <select name="role" id="role" class="form-select" required>
+                                {% set current_role = old.role|default(form_user.role|default('personnel')) %}
+                                <option value="personnel" {{ current_role == 'personnel' ? 'selected' : '' }}>Personnel</option>
+                                <option value="staff" {{ current_role == 'staff' ? 'selected' : '' }}>Staff</option>
+                                <option value="admin" {{ current_role == 'admin' ? 'selected' : '' }}>Admin</option>
+                            </select>
+                            {% if mode == 'edit' %}
+                                <div class="form-text text-warning">
+                                    <i class="fas fa-exclamation-triangle me-1"></i>
+                                    Changing the role requires your admin password for confirmation.
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        {# Password #}
+                        <div class="mb-3">
+                            <label for="password" class="form-label">
+                                Password {{ mode == 'create' ? '' : '(leave blank to keep current)' }}
+                                {% if mode == 'create' %}<span class="text-danger">*</span>{% endif %}
+                            </label>
+                            <input type="password" name="password" id="password" class="form-control"
+                                   minlength="8"
+                                   {{ mode == 'create' ? 'required' : '' }}>
+                            <div class="form-text">Minimum 8 characters.</div>
+                        </div>
+
+                        {% if mode == 'edit' %}
+                            {# Active Status #}
+                            <div class="mb-3">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" name="is_active" id="is_active"
+                                           {{ (old.is_active is defined ? old.is_active : form_user.is_active) ? 'checked' : '' }}>
+                                    <label class="form-check-label" for="is_active">Account Active</label>
+                                </div>
+                            </div>
+
+                            {# Admin Password for role changes #}
+                            <div class="mb-3" id="adminPasswordGroup" style="display: none;">
+                                <label for="admin_password" class="form-label">
+                                    Your Admin Password <span class="text-danger">*</span>
+                                </label>
+                                <input type="password" name="admin_password" id="admin_password" class="form-control">
+                                <div class="form-text">Required when changing the user's role.</div>
+                            </div>
+                        {% else %}
+                            {# Email verified checkbox for new users #}
+                            <div class="mb-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="email_verified" id="email_verified">
+                                    <label class="form-check-label" for="email_verified">
+                                        Mark email as verified immediately
+                                    </label>
+                                </div>
+                            </div>
+                        {% endif %}
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-1"></i>
+                                {{ mode == 'create' ? 'Create User' : 'Save Changes' }}
+                            </button>
+                            <a href="/admin/users" class="btn btn-outline-secondary">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        {% if mode == 'edit' and form_user %}
+            <div class="col-lg-4">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h6 class="mb-0"><i class="fas fa-info-circle me-1"></i> User Info</h6>
+                    </div>
+                    <div class="card-body">
+                        <dl class="mb-0">
+                            <dt>User ID</dt>
+                            <dd>{{ form_user.id }}</dd>
+
+                            <dt>Created</dt>
+                            <dd>{{ form_user.created_at|date('M d, Y g:i A') }}</dd>
+
+                            <dt>Last Login</dt>
+                            <dd>{{ form_user.last_login_at ? form_user.last_login_at|date('M d, Y g:i A') : 'Never' }}</dd>
+
+                            <dt>Email Verified</dt>
+                            <dd>{{ form_user.email_verified_at ? form_user.email_verified_at|date('M d, Y') : 'Not verified' }}</dd>
+
+                            <dt>2FA Enabled</dt>
+                            <dd>{{ form_user.two_factor_enabled ? 'Yes' : 'No' }}</dd>
+                        </dl>
+                    </div>
+                    <div class="card-footer text-end">
+                        <a href="/profile/{{ form_user.id }}" class="btn btn-sm btn-outline-secondary">
+                            <i class="fas fa-id-badge me-1"></i> View Profile
+                        </a>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+
+    {# ── User Audit Logs ── #}
+    {% if mode == 'edit' and user_logs is defined %}
+        <div class="card mt-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-history me-2"></i>Activity Log — {{ form_user.full_name }}</h5>
+                <a href="/admin/audit-logs?user_id={{ form_user.id }}" class="btn btn-sm btn-outline-secondary">
+                    View All Logs
+                </a>
+            </div>
+            <div class="card-body p-0">
+                {% if user_logs is not empty %}
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Timestamp</th>
+                                    <th>Action</th>
+                                    <th>Entity</th>
+                                    <th>IP Address</th>
+                                    <th>Details</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for log in user_logs %}
+                                    <tr>
+                                        <td><small>{{ log.created_at|date('M d, Y g:i A') }}</small></td>
+                                        <td>
+                                            {% set action_colors = {
+                                                'created': 'text-success', 'submitted': 'text-primary',
+                                                'updated': 'text-info', 'status_changed': 'text-warning',
+                                                'cancelled': 'text-danger', 'deactivated': 'text-danger',
+                                                'activated': 'text-success', 'assigned': 'text-info',
+                                                'login': 'text-muted', 'registered': 'text-success',
+                                                'adjusted': 'text-warning', 'item_created': 'text-success'
+                                            } %}
+                                            {% set action_suffix = log.action|split('.')|last %}
+                                            <span class="{{ action_colors[action_suffix]|default('') }}">
+                                                <code class="small">{{ log.action }}</code>
+                                            </span>
+                                        </td>
+                                        <td>
+                                            {% if log.entity_type %}
+                                                <span class="badge bg-secondary">{{ log.entity_type }}</span>
+                                                {% if log.entity_id %}#{{ log.entity_id }}{% endif %}
+                                            {% else %}
+                                                <span class="text-muted">&mdash;</span>
+                                            {% endif %}
+                                        </td>
+                                        <td><small class="text-muted">{{ log.ip_address|default('&mdash;') }}</small></td>
+                                        <td>
+                                            {% if log.old_values or log.new_values %}
+                                                <button class="btn btn-sm btn-outline-secondary py-0"
+                                                        type="button"
+                                                        data-bs-toggle="collapse"
+                                                        data-bs-target="#edit-log-{{ log.id }}">
+                                                    <i class="fas fa-eye"></i>
+                                                </button>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% if log.old_values or log.new_values %}
+                                        <tr class="collapse" id="edit-log-{{ log.id }}">
+                                            <td colspan="5" class="bg-light">
+                                                <div class="row small">
+                                                    {% if log.old_values %}
+                                                        <div class="col-md-6">
+                                                            <strong class="text-danger">Old:</strong>
+                                                            <pre class="mb-0">{{ log.old_values }}</pre>
+                                                        </div>
+                                                    {% endif %}
+                                                    {% if log.new_values %}
+                                                        <div class="col-md-6">
+                                                            <strong class="text-success">New:</strong>
+                                                            <pre class="mb-0">{{ log.new_values }}</pre>
+                                                        </div>
+                                                    {% endif %}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    {% endif %}
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center text-muted py-4">No activity logged for this user.</div>
+                {% endif %}
+            </div>
+        </div>
+    {% endif %}
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var roleSelect = document.getElementById('role');
+    var adminPwGroup = document.getElementById('adminPasswordGroup');
+    var originalRole = '{{ form_user.role|default('') }}';
+
+    if (roleSelect && adminPwGroup) {
+        function toggleAdminPw() {
+            if (roleSelect.value !== originalRole && originalRole !== '') {
+                adminPwGroup.style.display = 'block';
+                document.getElementById('admin_password').required = true;
+            } else {
+                adminPwGroup.style.display = 'none';
+                document.getElementById('admin_password').required = false;
+            }
+        }
+        roleSelect.addEventListener('change', toggleAdminPw);
+        toggleAdminPw();
+    }
+});
+</script>
+{% endblock %}

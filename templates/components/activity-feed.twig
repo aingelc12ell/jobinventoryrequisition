@@ -1,0 +1,60 @@
+{# ──────────────────────────────────────────────────────────────────────────────
+   Activity Feed Component
+   Reusable timeline of recent actions.
+   Expects:
+     - activities (array)  List of activity records with: action, entity_type, entity_id, created_at, user_name
+   ────────────────────────────────────────────────────────────────────────────── #}
+
+{% set action_icons = {
+    'request.created': 'fa-plus-circle text-success',
+    'request.submitted': 'fa-paper-plane text-primary',
+    'request.updated': 'fa-edit text-info',
+    'request.status_changed': 'fa-exchange-alt text-warning',
+    'request.cancelled': 'fa-ban text-danger',
+    'request.assigned': 'fa-user-check text-info',
+    'inventory.created': 'fa-box text-success',
+    'inventory.updated': 'fa-box text-info',
+    'inventory.adjusted': 'fa-sliders-h text-warning',
+    'user.login': 'fa-sign-in-alt text-muted',
+    'user.registered': 'fa-user-plus text-success'
+} %}
+
+{% set action_labels = {
+    'request.created': 'created a request',
+    'request.submitted': 'submitted a request',
+    'request.updated': 'updated a request',
+    'request.status_changed': 'changed request status',
+    'request.cancelled': 'cancelled a request',
+    'request.assigned': 'assigned a request',
+    'inventory.created': 'added inventory item',
+    'inventory.updated': 'updated inventory item',
+    'inventory.adjusted': 'adjusted inventory stock',
+    'user.login': 'logged in',
+    'user.registered': 'registered'
+} %}
+
+{% if activities is defined and activities is not empty %}
+    <div class="activity-feed">
+        {% for activity in activities %}
+            <div class="d-flex align-items-start mb-3 {{ not loop.last ? 'pb-3 border-bottom' : '' }}">
+                <div class="me-3 mt-1">
+                    <i class="fas {{ action_icons[activity.action]|default('fa-circle text-muted') }} fa-lg"></i>
+                </div>
+                <div class="flex-grow-1">
+                    <div>
+                        <strong>{{ activity.user_name|default('System') }}</strong>
+                        {{ action_labels[activity.action]|default(activity.action) }}
+                        {% if activity.entity_type == 'request' and activity.entity_id %}
+                            <a href="/requests/{{ activity.entity_id }}" class="text-decoration-none">#{{ activity.entity_id }}</a>
+                        {% elseif activity.entity_type == 'inventory' and activity.entity_id %}
+                            <a href="/staff/inventory/{{ activity.entity_id }}" class="text-decoration-none">#{{ activity.entity_id }}</a>
+                        {% endif %}
+                    </div>
+                    <small class="text-muted">{{ activity.created_at|date('M d, Y g:i A') }}</small>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+{% else %}
+    <p class="text-muted text-center mb-0">No recent activity.</p>
+{% endif %}

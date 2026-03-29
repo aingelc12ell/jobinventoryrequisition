@@ -1,0 +1,91 @@
+# ==========================================================
+# JIR — Docker Compose (PHP 8.4-FPM + Nginx + MySQL 8.4)
+# ==========================================================
+# Managed by install/docker-setup.ps1 — do not edit env vars
+# here; they are substituted from the project .env file.
+#
+# Manual usage from project root:
+#   docker compose -f install/docker-compose.yml --env-file .env up -d
+# ==========================================================
+
+services:
+  # ── PHP-FPM application container ───────────────────────
+  app:
+    build:
+      context: ./docker
+      dockerfile: Dockerfile
+    container_name: jir-app
+    restart: unless-stopped
+    working_dir: /var/www/html
+    volumes:
+      - ..:/var/www/html
+    environment:
+      # Override DB_HOST so the app resolves the Docker service name
+      DB_HOST: db
+      DB_PORT: ${DB_PORT:-3306}
+      DB_NAME: ${DB_NAME:-job_inventory_requests}
+      DB_USER: ${DB_USER:-jir_app}
+      DB_PASS: ${DB_PASS:?Set DB_PASS in .env}
+      DB_CHARSET: ${DB_CHARSET:-utf8mb4}
+      DB_COLLATION: ${DB_COLLATION:-utf8mb4_general_ci}
+      DB_SSL_ENABLED: ${DB_SSL_ENABLED:-false}
+      DB_SSL_CA: ${DB_SSL_CA:-}
+      DB_SSL_CERT: ${DB_SSL_CERT:-}
+      DB_SSL_KEY: ${DB_SSL_KEY:-}
+      DB_SSL_VERIFY: ${DB_SSL_VERIFY:-true}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - jir-net
+
+  # ── Nginx web server ───────────────────────────────────
+  web:
+    image: nginx:1.27-alpine
+    container_name: jir-web
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-8080}:80"
+    volumes:
+      - ../public:/var/www/html/public:ro
+      - ../storage/uploads:/var/www/html/storage/uploads:ro
+      - ./docker/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - app
+    networks:
+      - jir-net
+
+  # ── MySQL 8.4 LTS database ────────────────────────────
+  db:
+    image: mysql:8.4
+    container_name: jir-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD in .env}
+      MYSQL_DATABASE: ${DB_NAME:-job_inventory_requests}
+      MYSQL_USER: ${DB_USER:-jir_app}
+      MYSQL_PASSWORD: ${DB_PASS:?Set DB_PASS in .env}
+    command:
+      - --character-set-server=${DB_CHARSET:-utf8mb4}
+      - --collation-server=${DB_COLLATION:-utf8mb4_general_ci}
+      - --authentication-policy=caching_sha2_password
+    volumes:
+      - mysql_data:/var/lib/mysql
+    ports:
+      - "${DB_EXTERNAL_PORT:-3306}:3306"
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 30s
+    networks:
+      - jir-net
+
+volumes:
+  mysql_data:
+    driver: local
+
+networks:
+  jir-net:
+    driver: bridge

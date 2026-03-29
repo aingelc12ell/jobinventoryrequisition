@@ -1,0 +1,159 @@
+{% extends 'layouts/app.twig' %}
+
+{% block title %}Batch Inventory Operations{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+
+    {# -- Page Header -- #}
+    <div class="row mb-4">
+        <div class="col">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2>Batch Inventory Operations</h2>
+                <a href="/staff/inventory" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-1"></i> Back to Catalog
+                </a>
+            </div>
+        </div>
+    </div>
+
+    {# -- Tab Navigation -- #}
+    <ul class="nav nav-tabs mb-4" id="batchTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="stock-in-tab" data-bs-toggle="tab"
+                    data-bs-target="#stock-in-pane" type="button" role="tab"
+                    aria-controls="stock-in-pane" aria-selected="true">
+                <i class="fas fa-arrow-down me-1"></i> Batch Stock In
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="add-items-tab" data-bs-toggle="tab"
+                    data-bs-target="#add-items-pane" type="button" role="tab"
+                    aria-controls="add-items-pane" aria-selected="false">
+                <i class="fas fa-plus me-1"></i> Batch Add Items
+            </button>
+        </li>
+    </ul>
+
+    {# -- Tab Content -- #}
+    <div class="tab-content" id="batchTabContent">
+
+        {# ====================================================================
+           TAB 1: Batch Stock In
+           ==================================================================== #}
+        <div class="tab-pane fade show active" id="stock-in-pane" role="tabpanel" aria-labelledby="stock-in-tab">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Batch Stock In</h5>
+                    <button type="button" class="btn btn-sm btn-outline-success" id="addStockInRow">
+                        <i class="fas fa-plus me-1"></i> Add Row
+                    </button>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="/staff/inventory/batch/stock-in" id="batchStockInForm">
+                        {{ csrf_fields|raw }}
+
+                        <div class="table-responsive">
+                            <table class="table table-bordered align-middle mb-3" id="stockInTable">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th style="width: 5%">#</th>
+                                        <th style="width: 35%">Item (search by name, SKU, category)</th>
+                                        <th style="width: 15%">Current Stock</th>
+                                        <th style="width: 15%">Qty to Add</th>
+                                        <th style="width: 25%">Notes</th>
+                                        <th style="width: 5%"></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="stockInRows">
+                                    {# Initial row rendered by JS #}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-success" id="submitStockIn">
+                                <i class="fas fa-check me-1"></i> Process Stock In
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary" id="clearStockIn">
+                                <i class="fas fa-eraser me-1"></i> Clear All
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        {# ====================================================================
+           TAB 2: Batch Add New Items
+           ==================================================================== #}
+        <div class="tab-pane fade" id="add-items-pane" role="tabpanel" aria-labelledby="add-items-tab">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Batch Add New Items</h5>
+                    <button type="button" class="btn btn-sm btn-outline-primary" id="addNewItemRow">
+                        <i class="fas fa-plus me-1"></i> Add Row
+                    </button>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="/staff/inventory/batch/add" id="batchAddForm">
+                        {{ csrf_fields|raw }}
+
+                        <div class="table-responsive">
+                            <table class="table table-bordered align-middle mb-3" id="addItemsTable">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th style="width: 4%">#</th>
+                                        <th style="width: 20%">Name <span class="text-danger">*</span></th>
+                                        <th style="width: 12%">SKU</th>
+                                        <th style="width: 14%">Category</th>
+                                        <th style="width: 10%">Unit <span class="text-danger">*</span></th>
+                                        <th style="width: 10%">Initial Stock</th>
+                                        <th style="width: 10%">Reorder Lvl</th>
+                                        <th style="width: 14%">Location</th>
+                                        <th style="width: 4%"></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="addItemRows">
+                                    {# Initial row rendered by JS #}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {# Duplicate warning area #}
+                        <div id="duplicateWarnings" class="mb-3" style="display:none;">
+                            <div class="alert alert-warning py-2 mb-0">
+                                <i class="fas fa-triangle-exclamation me-1"></i>
+                                <strong>Possible duplicates detected:</strong>
+                                <ul class="mb-0 mt-1" id="duplicateList"></ul>
+                            </div>
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary" id="submitAddItems">
+                                <i class="fas fa-save me-1"></i> Create Items
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary" id="clearAddItems">
+                                <i class="fas fa-eraser me-1"></i> Clear All
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            {# Category datalist for reuse #}
+            <datalist id="batch-category-list">
+                {% for category in categories %}
+                    <option value="{{ category }}">
+                {% endfor %}
+            </datalist>
+        </div>
+
+    </div>{# /tab-content #}
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/js/batch-inventory.js"></script>
+{% endblock %}

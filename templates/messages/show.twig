@@ -1,0 +1,90 @@
+{% extends 'layouts/app.twig' %}
+
+{% block title %}{{ conversation.subject }} — {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    {# Header #}
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <a href="/messages" class="text-decoration-none text-muted me-2">
+                <i class="fas fa-arrow-left"></i> Back to Inbox
+            </a>
+            <h2 class="mt-2 mb-0">{{ conversation.subject }}</h2>
+            <div class="mt-1">
+                {% if conversation.request_id %}
+                    <a href="/requests/{{ conversation.request_id }}" class="badge bg-info text-decoration-none">
+                        <i class="fas fa-link me-1"></i>Request #{{ conversation.request_id }}
+                    </a>
+                {% endif %}
+                <small class="text-muted ms-2">
+                    Participants:
+                    {% for p in conversation.participants %}
+                        <span class="badge bg-secondary">{{ p.full_name }} ({{ p.role }})</span>
+                    {% endfor %}
+                </small>
+            </div>
+        </div>
+        <form method="post" action="/messages/{{ conversation.id }}/archive">
+            {{ csrf_fields|raw }}
+            <button type="submit" class="btn btn-outline-secondary btn-sm"
+                    onclick="return confirm('Archive this conversation?')">
+                <i class="fas fa-archive me-1"></i> Archive
+            </button>
+        </form>
+    </div>
+
+    {# Messages thread #}
+    <div class="card mb-4">
+        <div class="card-body p-0">
+            <div class="message-thread" id="messageThread" style="max-height: 600px; overflow-y: auto;">
+                {% for msg in conversation.messages %}
+                    <div class="p-3 {{ not loop.last ? 'border-bottom' : '' }} {{ msg.sender_id == user.id ? 'bg-light' : '' }}">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div>
+                                <strong class="{{ msg.sender_role == 'staff' ? 'text-primary' : (msg.sender_role == 'admin' ? 'text-danger' : 'text-dark') }}">
+                                    {{ msg.sender_name }}
+                                </strong>
+                                <span class="badge bg-{{ msg.sender_role == 'admin' ? 'danger' : (msg.sender_role == 'staff' ? 'primary' : 'secondary') }} ms-1">
+                                    {{ msg.sender_role|capitalize }}
+                                </span>
+                            </div>
+                            <small class="text-muted">{{ msg.created_at|date('M d, Y g:i A') }}</small>
+                        </div>
+                        <div class="message-body">{{ msg.body|nl2br }}</div>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    {# Reply form #}
+    <div class="card">
+        <div class="card-header">
+            <h6 class="mb-0"><i class="fas fa-reply me-1"></i> Reply</h6>
+        </div>
+        <div class="card-body">
+            <form method="post" action="/messages/{{ conversation.id }}/reply">
+                {{ csrf_fields|raw }}
+                <div class="mb-3">
+                    <textarea name="body" class="form-control" rows="4"
+                              placeholder="Type your reply..." required></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-paper-plane me-1"></i> Send Reply
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// Auto-scroll to bottom of message thread
+document.addEventListener('DOMContentLoaded', function() {
+    const thread = document.getElementById('messageThread');
+    if (thread) {
+        thread.scrollTop = thread.scrollHeight;
+    }
+});
+</script>
+{% endblock %}

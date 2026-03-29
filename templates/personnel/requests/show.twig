@@ -1,0 +1,311 @@
+{% extends 'layouts/app.twig' %}
+
+{% block title %}Request #{{ request.id }}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+
+    {# ── Page Header ── #}
+    <div class="row mb-4 align-items-center">
+        <div class="col">
+            <h2 class="mb-1">Request #{{ request.id }}: {{ request.title }}</h2>
+            <a href="/requests" class="text-muted text-decoration-none">
+                <i class="fas fa-arrow-left me-1"></i> Back to My Requests
+            </a>
+        </div>
+        <div class="col-auto d-flex gap-2">
+            {% if request.status == 'draft' %}
+                <a href="/requests/{{ request.id }}/edit" class="btn btn-outline-primary">
+                    <i class="fas fa-edit me-1"></i> Edit
+                </a>
+                <form method="POST" action="/requests/{{ request.id }}/submit" class="d-inline">
+                    {{ csrf_fields|raw }}
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-paper-plane me-1"></i> Submit
+                    </button>
+                </form>
+                <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#cancelModal">
+                    <i class="fas fa-ban me-1"></i> Cancel
+                </button>
+            {% elseif request.status == 'submitted' or request.status == 'in_review' %}
+                <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#cancelModal">
+                    <i class="fas fa-ban me-1"></i> Cancel
+                </button>
+            {% elseif request.status == 'approved' %}
+                <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#cancelModal">
+                    <i class="fas fa-ban me-1"></i> Cancel
+                </button>
+            {% endif %}
+            <a href="/messages/new?request_id={{ request.id }}&subject={{ ('Re: Request #' ~ request.id ~ ' — ' ~ request.title)|url_encode }}"
+               class="btn btn-outline-info">
+                <i class="fas fa-envelope me-1"></i> Message Staff
+            </a>
+        </div>
+    </div>
+
+    {# ── Two-Column Layout ── #}
+    <div class="row">
+
+        {# ── Left Column: Main Content ── #}
+        <div class="col-md-8">
+
+            {# Details Card #}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-file-alt me-1"></i> Details
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label text-muted fw-semibold">Description</label>
+                        <div class="ps-1">
+                            {% for paragraph in request.description|split("\n") %}
+                                {% if paragraph|trim is not empty %}
+                                    <p>{{ paragraph }}</p>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    {% if request.type == 'inventory' and request.items is defined and request.items is not empty %}
+                        <hr>
+                        <label class="form-label text-muted fw-semibold">
+                            <i class="fas fa-boxes-stacked me-1"></i> Items Requested
+                        </label>
+                        <div class="table-responsive-wrapper">
+                            <table class="table table-sm table-bordered mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Item Name</th>
+                                        <th style="width: 100px;">Quantity</th>
+                                        <th style="width: 100px;">Unit</th>
+                                        <th>Notes</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in request.items %}
+                                    <tr>
+                                        <td>{{ item.r_item_name }}</td>
+                                        <td>{{ item.quantity }}</td>
+                                        <td>{{ item.unit|default('—') }}</td>
+                                        <td>{{ item.notes|default('—') }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            {# Attachments Card #}
+            {% if request.attachments is defined and request.attachments is not empty %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-paperclip me-1"></i> Attachments
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    <ul class="list-group list-group-flush">
+                        {% for attachment in request.attachments %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <i class="fas fa-file me-2 text-muted"></i>
+                                <a href="/attachments/{{ attachment.id }}/download" class="text-decoration-none">
+                                    {{ attachment.original_name }}
+                                </a>
+                            </div>
+                            <div class="text-muted">
+                                <small>
+                                    {{ attachment.file_size }}
+                                    {% if attachment.created_at is defined %}
+                                        <span class="ms-2">{{ attachment.created_at|date('M d, Y') }}</span>
+                                    {% endif %}
+                                </small>
+                            </div>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+            {% endif %}
+
+        </div>
+
+        {# ── Right Column: Sidebar ── #}
+        <div class="col-md-4">
+
+            {# Info Card #}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-info-circle me-1"></i> Information
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <dl class="row mb-0">
+                        <dt class="col-sm-5 text-muted">Type</dt>
+                        <dd class="col-sm-7">
+                            {% if request.type == 'job' %}
+                                <span class="badge bg-primary"><i class="fas fa-briefcase me-1"></i> Job</span>
+                            {% else %}
+                                <span class="badge bg-success"><i class="fas fa-boxes-stacked me-1"></i> Inventory</span>
+                            {% endif %}
+                        </dd>
+
+                        <dt class="col-sm-5 text-muted">Status</dt>
+                        <dd class="col-sm-7">
+                            <span class="badge badge-{{ request.status }}">
+                                {{ request.status|replace({'_': ' '})|title }}
+                            </span>
+                        </dd>
+
+                        <dt class="col-sm-5 text-muted">Priority</dt>
+                        <dd class="col-sm-7">
+                            {% if request.priority == 'low' %}
+                                <span class="badge bg-secondary">Low</span>
+                            {% elseif request.priority == 'medium' %}
+                                <span class="badge bg-info">Medium</span>
+                            {% elseif request.priority == 'high' %}
+                                <span class="badge bg-warning text-dark">High</span>
+                            {% elseif request.priority == 'urgent' %}
+                                <span class="badge bg-danger">Urgent</span>
+                            {% endif %}
+                        </dd>
+
+                        <dt class="col-sm-5 text-muted">Submitted by</dt>
+                        <dd class="col-sm-7">
+                            {% if request.submitter_name is defined and request.submitter_name %}
+                                {% if request.user_id == user.id %}
+                                    You
+                                {% else %}
+                                    {{ request.submitter_name }}
+                                {% endif %}
+                            {% else %}
+                                You
+                            {% endif %}
+                        </dd>
+
+                        <dt class="col-sm-5 text-muted">Assigned to</dt>
+                        <dd class="col-sm-7">
+                            {% if request.assigned_to_name is defined and request.assigned_to_name %}
+                                {{ request.assigned_to_name }}
+                            {% else %}
+                                <span class="text-muted">Unassigned</span>
+                            {% endif %}
+                        </dd>
+
+                        <dt class="col-sm-5 text-muted">Due Date</dt>
+                        <dd class="col-sm-7">
+                            {% if request.due_date %}
+                                {{ request.due_date|date('M d, Y') }}
+                            {% else %}
+                                <span class="text-muted">None</span>
+                            {% endif %}
+                        </dd>
+
+                        <dt class="col-sm-5 text-muted">Created</dt>
+                        <dd class="col-sm-7">{{ request.created_at|date('M d, Y') }}</dd>
+
+                        <dt class="col-sm-5 text-muted">Updated</dt>
+                        <dd class="col-sm-7">{{ request.updated_at|date('M d, Y') }}</dd>
+                    </dl>
+                </div>
+            </div>
+
+            {# Status History Card #}
+            {% if status_history is defined and status_history is not empty %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-history me-1"></i> Status History
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled mb-0">
+                        {% for entry in status_history %}
+                        <li class="mb-3 {{ not loop.last ? 'pb-3 border-bottom' : '' }}">
+                            <div class="d-flex align-items-start">
+                                <div class="me-2 mt-1">
+                                    {% if entry.new_status == 'submitted' %}
+                                        <i class="fas fa-paper-plane text-primary"></i>
+                                    {% elseif entry.new_status == 'in_review' %}
+                                        <i class="fas fa-search text-warning"></i>
+                                    {% elseif entry.new_status == 'approved' %}
+                                        <i class="fas fa-check-circle text-success"></i>
+                                    {% elseif entry.new_status == 'rejected' %}
+                                        <i class="fas fa-times-circle text-danger"></i>
+                                    {% elseif entry.new_status == 'completed' %}
+                                        <i class="fas fa-flag-checkered text-info"></i>
+                                    {% elseif entry.new_status == 'cancelled' %}
+                                        <i class="fas fa-ban text-secondary"></i>
+                                    {% else %}
+                                        <i class="fas fa-circle text-muted"></i>
+                                    {% endif %}
+                                </div>
+                                <div>
+                                    <div class="fw-medium">
+                                        {% if entry.old_status %}
+                                            <span class="badge badge-{{ entry.old_status }} badge-sm">{{ entry.old_status|replace({'_': ' '})|title }}</span>
+                                            <i class="fas fa-arrow-right mx-1 text-muted small"></i>
+                                        {% endif %}
+                                        <span class="badge badge-{{ entry.new_status }} badge-sm">{{ entry.new_status|replace({'_': ' '})|title }}</span>
+                                    </div>
+                                    <small class="text-muted">
+                                        by {{ entry.changed_by_name|default('System') }}
+                                        &middot; {{ entry.created_at|date('M d, Y g:ia') }}
+                                    </small>
+                                    {% if entry.comment is defined and entry.comment %}
+                                        <div class="mt-1 small text-muted fst-italic">
+                                            "{{ entry.comment }}"
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+            {% endif %}
+
+        </div>
+
+    </div>
+
+</div>
+
+{# ── Cancel Modal ── #}
+{% if request.status in ['draft', 'submitted', 'in_review', 'approved'] %}
+<div class="modal fade" id="cancelModal" tabindex="-1" aria-labelledby="cancelModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="/requests/{{ request.id }}/cancel">
+                {{ csrf_fields|raw }}
+                <div class="modal-header">
+                    <h5 class="modal-title" id="cancelModalLabel">Cancel Request</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to cancel this request?</p>
+                    <div class="mb-3">
+                        <label for="cancel-comment" class="form-label">Comment <span class="text-muted">(optional)</span></label>
+                        <textarea class="form-control" id="cancel-comment" name="comment" rows="3"
+                                  placeholder="Reason for cancellation..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Keep Request</button>
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-ban me-1"></i> Cancel Request
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}

@@ -1,0 +1,203 @@
+{# ──────────────────────────────────────────────────────────────────────────────
+   Navbar Component
+   Responsive Bootstrap 5 navigation bar.
+   Expects:
+     - user         (object|null)  Current authenticated user
+     - user.role    (string)       One of: personnel, staff, admin
+     - user.name    (string)       Display name
+     - unread_count (int|null)     Number of unread messages
+     - csrf_fields  (string|raw)   Hidden CSRF inputs rendered by middleware
+   ────────────────────────────────────────────────────────────────────────────── #}
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm">
+    <div class="container-fluid">
+
+        {# ── Brand ── #}
+        <a class="navbar-brand d-flex align-items-center" href="/dashboard">
+            <i class="fas fa-clipboard-list me-2"></i>
+            <span>JIR System</span>
+        </a>
+
+        {# ── Mobile hamburger toggle ── #}
+        <button class="navbar-toggler"
+                type="button"
+                data-bs-toggle="collapse"
+                data-bs-target="#mainNavbar"
+                aria-controls="mainNavbar"
+                aria-expanded="false"
+                aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+
+        {# ── Collapsible nav content ── #}
+        <div class="collapse navbar-collapse" id="mainNavbar">
+
+            {% if user is defined and user %}
+                {# ════════════════════════════════════════════════════════════
+                   Authenticated navigation — role-based links
+                   ════════════════════════════════════════════════════════════ #}
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+
+                    {# ── Personnel role ── #}
+                    {% if user.role == 'personnel' %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="/dashboard">
+                                <i class="fas fa-tachometer-alt me-1"></i> Dashboard
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/requests">
+                                <i class="fas fa-list me-1"></i> My Requests
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/requests/new">
+                                <i class="fas fa-plus-circle me-1"></i> New Request
+                            </a>
+                        </li>
+                    {% endif %}
+
+                    {# ── Staff role ── #}
+                    {% if user.role == 'staff' %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="/staff/dashboard">
+                                <i class="fas fa-tachometer-alt me-1"></i> Dashboard
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/staff/requests">
+                                <i class="fas fa-tasks me-1"></i> Request Queue
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/staff/inventory">
+                                <i class="fas fa-boxes-stacked me-1"></i> Inventory
+                            </a>
+                        </li>
+                    {% endif %}
+
+                    {# ── Admin role ── #}
+                    {% if user.role == 'admin' %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="/admin/dashboard">
+                                <i class="fas fa-tachometer-alt me-1"></i> Dashboard
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/staff/requests">
+                                <i class="fas fa-tasks me-1"></i> Requests
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/staff/inventory">
+                                <i class="fas fa-boxes-stacked me-1"></i> Inventory
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/admin/users">
+                                <i class="fas fa-users-cog me-1"></i> Users
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/admin/audit-logs">
+                                <i class="fas fa-clipboard-list me-1"></i> Audit Logs
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/admin/settings">
+                                <i class="fas fa-cogs me-1"></i> Settings
+                            </a>
+                        </li>
+                    {% endif %}
+
+                </ul>
+
+                {# ── Right-side controls: theme toggle, messages, user dropdown ── #}
+                <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
+
+                    {# Theme toggle #}
+                    <li class="nav-item">
+                        <button type="button"
+                                class="nav-link btn btn-link border-0"
+                                id="themeToggle"
+                                aria-label="Toggle theme"
+                                title="Toggle light/dark theme">
+                            <i class="fas fa-moon" id="themeIcon"></i>
+                        </button>
+                    </li>
+
+                    {# Messages link with unread badge #}
+                    <li class="nav-item">
+                        <a class="nav-link position-relative" href="/messages">
+                            <i class="fas fa-envelope me-1"></i> Messages
+                            {% if unread_count is defined and unread_count > 0 %}
+                                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                                    {{ unread_count }}
+                                    <span class="visually-hidden">unread messages</span>
+                                </span>
+                            {% endif %}
+                        </a>
+                    </li>
+
+                    {# User dropdown #}
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle"
+                           href="#"
+                           id="userDropdown"
+                           role="button"
+                           data-bs-toggle="dropdown"
+                           aria-expanded="false">
+                            <i class="fas fa-user-circle me-1"></i>
+                            {{ user.name|default('Account') }}
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+                            <li>
+                                <a class="dropdown-item" href="/profile">
+                                    <i class="fas fa-id-badge me-2"></i> Profile
+                                </a>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <form method="post" action="/logout" class="d-inline">
+                                    {{ csrf_fields|raw }}
+                                    <button type="submit" class="dropdown-item text-danger">
+                                        <i class="fas fa-sign-out-alt me-2"></i> Logout
+                                    </button>
+                                </form>
+                            </li>
+                        </ul>
+                    </li>
+
+                </ul>
+
+            {% else %}
+                {# ════════════════════════════════════════════════════════════
+                   Guest navigation — login / register
+                   ════════════════════════════════════════════════════════════ #}
+                <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
+                    {# Theme toggle (guest) #}
+                    <li class="nav-item">
+                        <button type="button"
+                                class="nav-link btn btn-link border-0"
+                                id="themeToggleGuest"
+                                aria-label="Toggle theme"
+                                title="Toggle light/dark theme">
+                            <i class="fas fa-moon" id="themeIconGuest"></i>
+                        </button>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/login">
+                            <i class="fas fa-sign-in-alt me-1"></i> Login
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/register">
+                            <i class="fas fa-user-plus me-1"></i> Register
+                        </a>
+                    </li>
+                </ul>
+            {% endif %}
+
+        </div>{# /collapse #}
+    </div>{# /container-fluid #}
+</nav>

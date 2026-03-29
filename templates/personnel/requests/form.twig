@@ -1,0 +1,435 @@
+{% extends 'layouts/app.twig' %}
+
+{% block title %}{{ mode == 'edit' ? 'Edit Request' : 'New Request' }}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+
+    {# ── Page Header ── #}
+    <div class="row mb-4">
+        <div class="col">
+            <h2>{{ mode == 'edit' ? 'Edit Request #' ~ request.id : 'New Request' }}</h2>
+        </div>
+    </div>
+
+    {# ── Request Form ── #}
+    <div class="card">
+        <div class="card-body">
+            <form method="POST"
+                  action="{{ mode == 'edit' ? '/requests/' ~ request.id : '/requests' }}"
+                  enctype="multipart/form-data"
+                  id="request-form">
+
+                {% if mode == 'edit' %}
+                    <input type="hidden" name="_METHOD" value="PUT">
+                {% endif %}
+
+                {{ csrf_fields|raw }}
+
+                {# ── Request Type (create only) ── #}
+                {% if mode != 'edit' %}
+                <div class="mb-4">
+                    <label class="form-label fw-semibold">Request Type <span class="text-danger">*</span></label>
+                    <div class="d-flex gap-4">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="type" id="type-job"
+                                   value="job" data-type="job"
+                                   {{ (old.type|default('')) == 'job' ? 'checked' : '' }} required>
+                            <label class="form-check-label" for="type-job">
+                                <i class="fas fa-briefcase me-1"></i> Job Request
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="type" id="type-inventory"
+                                   value="inventory" data-type="inventory"
+                                   {{ (old.type|default('')) == 'inventory' ? 'checked' : '' }}>
+                            <label class="form-check-label" for="type-inventory">
+                                <i class="fas fa-boxes-stacked me-1"></i> Inventory Request
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="mb-4">
+                    <label class="form-label fw-semibold">Request Type</label>
+                    <div>
+                        {% if request.type == 'job' %}
+                            <span class="badge bg-primary"><i class="fas fa-briefcase me-1"></i> Job Request</span>
+                        {% else %}
+                            <span class="badge bg-success"><i class="fas fa-boxes-stacked me-1"></i> Inventory Request</span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+
+                {# ── Title ── #}
+                <div class="mb-3">
+                    <label for="title" class="form-label fw-semibold">Title <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" id="title" name="title"
+                           required maxlength="255" placeholder="Enter a descriptive title"
+                           value="{{ old.title|default(request.title|default('')) }}">
+                </div>
+
+                {# ── Description ── #}
+                <div class="mb-3">
+                    <label for="description" class="form-label fw-semibold">Description <span class="text-danger">*</span></label>
+                    <textarea class="form-control" id="description" name="description"
+                              required rows="4" placeholder="Provide details about your request">{{ old.description|default(request.description|default('')) }}</textarea>
+                </div>
+
+                {# ── Priority ── #}
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="priority" class="form-label fw-semibold">Priority</label>
+                        {% set current_priority = old.priority|default(request.priority|default('medium')) %}
+                        <select class="form-select" id="priority" name="priority">
+                            <option value="low" {{ current_priority == 'low' ? 'selected' : '' }}>Low</option>
+                            <option value="medium" {{ current_priority == 'medium' ? 'selected' : '' }}>Medium</option>
+                            <option value="high" {{ current_priority == 'high' ? 'selected' : '' }}>High</option>
+                            <option value="urgent" {{ current_priority == 'urgent' ? 'selected' : '' }}>Urgent</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="due_date" class="form-label fw-semibold">Due Date</label>
+                        <input type="date" class="form-control" id="due_date" name="due_date"
+                               min="{{ 'now'|date('Y-m-d') }}"
+                               value="{{ old.due_date|default(request.due_date|default('')) }}">
+                    </div>
+                </div>
+
+                {# ── Inventory Items Section ── #}
+                <div id="inventory-items-section" class="mb-4" style="display: none;">
+                    <h5 class="fw-semibold mb-3">
+                        <i class="fas fa-list me-1"></i> Items Requested
+                    </h5>
+                    <div class="table-responsive-wrapper">
+                        <table class="table table-bordered" id="items-table">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Item Name <span class="text-danger">*</span></th>
+                                    <th style="width: 120px;">Quantity <span class="text-danger">*</span></th>
+                                    <th style="width: 120px;">Unit</th>
+                                    <th>Notes</th>
+                                    <th style="width: 60px;">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="items-tbody">
+                                {% if mode == 'edit' and request.items is defined and request.items is not empty %}
+                                    {% for item in request.items %}
+                                    <tr class="item-row">
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm"
+                                                   name="items[{{ loop.index0 }}][item_name]"
+                                                   value="{{ item.item_name }}" required>
+                                        </td>
+                                        <td>
+                                            <input type="number" class="form-control form-control-sm"
+                                                   name="items[{{ loop.index0 }}][quantity]"
+                                                   value="{{ item.quantity }}" min="1" required>
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm"
+                                                   name="items[{{ loop.index0 }}][unit]"
+                                                   value="{{ item.unit|default('') }}"
+                                                   placeholder="e.g. pcs, kg">
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm"
+                                                   name="items[{{ loop.index0 }}][notes]"
+                                                   value="{{ item.notes|default('') }}">
+                                        </td>
+                                        <td class="text-center">
+                                            <button type="button" class="btn btn-sm btn-outline-danger remove-item-btn" title="Remove">
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                {% else %}
+                                    <tr class="item-row">
+                                        <td>
+                                            <input type="hidden" name="items[0][inventory_item_id]" class="inventory-item-id" value="">
+                                            <input type="text" class="form-control form-control-sm item-name-input"
+                                                   name="items[0][item_name]" required
+                                                   autocomplete="off" placeholder="Search catalog or type name...">
+                                            <div class="autocomplete-results list-group position-absolute" style="display:none; z-index:1050; width:calc(100% - 1.5rem);"></div>
+                                        </td>
+                                        <td>
+                                            <input type="number" class="form-control form-control-sm"
+                                                   name="items[0][quantity]" min="1" value="1" required>
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm"
+                                                   name="items[0][unit]" placeholder="e.g. pcs, kg">
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm"
+                                                   name="items[0][notes]">
+                                        </td>
+                                        <td class="text-center">
+                                            <button type="button" class="btn btn-sm btn-outline-danger remove-item-btn" title="Remove">
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <button type="button" class="btn btn-outline-success btn-sm" id="add-item-btn">
+                        <i class="fas fa-plus me-1"></i> Add Item
+                    </button>
+                </div>
+
+                {# ── File Attachments ── #}
+                <div class="mb-4">
+                    <label for="attachments" class="form-label fw-semibold">
+                        <i class="fas fa-paperclip me-1"></i> File Attachments
+                    </label>
+                    <input type="file" class="form-control" id="attachments" name="attachments[]" multiple
+                           accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png">
+                    <div class="form-text">
+                        Accepted: PDF, DOC, DOCX, XLS, XLSX, JPG, PNG (max 10MB each)
+                    </div>
+
+                    {% if mode == 'edit' and request.attachments is defined and request.attachments is not empty %}
+                        <div class="mt-3">
+                            <label class="form-label text-muted">Existing Attachments</label>
+                            <ul class="list-group list-group-flush">
+                                {% for attachment in request.attachments %}
+                                <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                                    <span>
+                                        <i class="fas fa-file me-2 text-muted"></i>
+                                        <a href="/attachments/{{ attachment.id }}/download" class="text-decoration-none">
+                                            {{ attachment.original_name }}
+                                        </a>
+                                        <small class="text-muted ms-2">{{ attachment.file_size }}</small>
+                                    </span>
+                                </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    {% endif %}
+                </div>
+
+                <hr>
+
+                {# ── Action Buttons ── #}
+                <div class="d-flex gap-2">
+                    <button type="submit" name="submit_action" value="save_draft" class="btn btn-secondary">
+                        <i class="fas fa-save me-1"></i> Save as Draft
+                    </button>
+                    <button type="submit" name="submit_action" value="submit" class="btn btn-primary">
+                        <i class="fas fa-paper-plane me-1"></i> Submit Request
+                    </button>
+                    <a href="/requests" class="btn btn-outline-secondary ms-auto">
+                        Cancel
+                    </a>
+                </div>
+
+            </form>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+    'use strict';
+
+    const typeRadios = document.querySelectorAll('input[name="type"]');
+    const inventorySection = document.getElementById('inventory-items-section');
+    const itemsTbody = document.getElementById('items-tbody');
+    const addItemBtn = document.getElementById('add-item-btn');
+
+    // ── Toggle inventory items section based on type selection ──
+    function toggleInventorySection() {
+        const selectedType = document.querySelector('input[name="type"]:checked');
+        if (inventorySection) {
+            if (selectedType && selectedType.value === 'inventory') {
+                inventorySection.style.display = 'block';
+                // Enable required on item inputs
+                inventorySection.querySelectorAll('input[name*="[item_name]"]').forEach(function(input) {
+                    input.required = true;
+                });
+                inventorySection.querySelectorAll('input[name*="[quantity]"]').forEach(function(input) {
+                    input.required = true;
+                });
+            } else {
+                inventorySection.style.display = 'none';
+                // Disable required on item inputs when hidden
+                inventorySection.querySelectorAll('input[name*="[item_name]"]').forEach(function(input) {
+                    input.required = false;
+                });
+                inventorySection.querySelectorAll('input[name*="[quantity]"]').forEach(function(input) {
+                    input.required = false;
+                });
+            }
+        }
+    }
+
+    typeRadios.forEach(function(radio) {
+        radio.addEventListener('change', toggleInventorySection);
+    });
+
+    // ── On page load, check current type and show/hide accordingly ──
+    toggleInventorySection();
+
+    // ── For edit mode with inventory type, ensure section is visible ──
+    {% if mode == 'edit' and request.type is defined and request.type == 'inventory' %}
+        if (inventorySection) {
+            inventorySection.style.display = 'block';
+        }
+    {% endif %}
+
+    // ── Add item row ──
+    if (addItemBtn) {
+        addItemBtn.addEventListener('click', function() {
+            var rows = itemsTbody.querySelectorAll('.item-row');
+            var newIndex = rows.length;
+
+            var newRow = document.createElement('tr');
+            newRow.className = 'item-row';
+            newRow.innerHTML =
+                '<td style="position:relative;">' +
+                    '<input type="hidden" name="items[' + newIndex + '][inventory_item_id]" class="inventory-item-id" value="">' +
+                    '<input type="text" class="form-control form-control-sm item-name-input" ' +
+                    'name="items[' + newIndex + '][item_name]" required autocomplete="off" placeholder="Search catalog or type name...">' +
+                    '<div class="autocomplete-results list-group position-absolute" style="display:none; z-index:1050; width:calc(100% - 1.5rem);"></div>' +
+                '</td>' +
+                '<td>' +
+                    '<input type="number" class="form-control form-control-sm" ' +
+                    'name="items[' + newIndex + '][quantity]" min="1" value="1" required>' +
+                '</td>' +
+                '<td>' +
+                    '<input type="text" class="form-control form-control-sm" ' +
+                    'name="items[' + newIndex + '][unit]" placeholder="e.g. pcs, kg">' +
+                '</td>' +
+                '<td>' +
+                    '<input type="text" class="form-control form-control-sm" ' +
+                    'name="items[' + newIndex + '][notes]">' +
+                '</td>' +
+                '<td class="text-center">' +
+                    '<button type="button" class="btn btn-sm btn-outline-danger remove-item-btn" title="Remove">' +
+                        '<i class="fas fa-times"></i>' +
+                    '</button>' +
+                '</td>';
+
+            itemsTbody.appendChild(newRow);
+            updateRemoveButtons();
+        });
+    }
+
+    // ── Remove item row ──
+    if (itemsTbody) {
+        itemsTbody.addEventListener('click', function(e) {
+            var removeBtn = e.target.closest('.remove-item-btn');
+            if (removeBtn) {
+                var rows = itemsTbody.querySelectorAll('.item-row');
+                if (rows.length > 1) {
+                    removeBtn.closest('.item-row').remove();
+                    reindexItems();
+                    updateRemoveButtons();
+                }
+            }
+        });
+    }
+
+    // ── Re-index item array names after removal ──
+    function reindexItems() {
+        var rows = itemsTbody.querySelectorAll('.item-row');
+        rows.forEach(function(row, index) {
+            row.querySelectorAll('input').forEach(function(input) {
+                var name = input.getAttribute('name');
+                if (name) {
+                    input.setAttribute('name', name.replace(/items\[\d+\]/, 'items[' + index + ']'));
+                }
+            });
+        });
+    }
+
+    // ── Show/hide remove buttons (hide if only one row) ──
+    function updateRemoveButtons() {
+        var rows = itemsTbody.querySelectorAll('.item-row');
+        var removeBtns = itemsTbody.querySelectorAll('.remove-item-btn');
+        removeBtns.forEach(function(btn) {
+            btn.style.display = rows.length > 1 ? '' : 'none';
+        });
+    }
+
+    // Initial state for remove buttons
+    updateRemoveButtons();
+
+    // ── Inventory Catalog Autocomplete ──
+    var searchTimeout = null;
+
+    document.addEventListener('input', function(e) {
+        if (!e.target.classList.contains('item-name-input')) return;
+        var input = e.target;
+        var resultsDiv = input.parentElement.querySelector('.autocomplete-results');
+        var term = input.value.trim();
+
+        // Clear previous hidden ID when user types manually
+        var hiddenId = input.parentElement.querySelector('.inventory-item-id');
+        if (hiddenId) hiddenId.value = '';
+
+        if (term.length < 2) {
+            if (resultsDiv) resultsDiv.style.display = 'none';
+            return;
+        }
+
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(function() {
+            fetch('/api/inventory/search?q=' + encodeURIComponent(term))
+                .then(function(r) { return r.json(); })
+                .then(function(items) {
+                    if (!resultsDiv) return;
+                    resultsDiv.innerHTML = '';
+                    if (items.length === 0) {
+                        resultsDiv.style.display = 'none';
+                        return;
+                    }
+                    items.forEach(function(item) {
+                        var el = document.createElement('a');
+                        el.href = '#';
+                        el.className = 'list-group-item list-group-item-action py-1 px-2 small';
+                        el.textContent = item.name + (item.sku ? ' (' + item.sku + ')' : '') + ' — ' + item.quantity_in_stock + ' ' + item.unit;
+                        el.dataset.id = item.id;
+                        el.dataset.name = item.name;
+                        el.dataset.unit = item.unit || '';
+                        resultsDiv.appendChild(el);
+                    });
+                    resultsDiv.style.display = 'block';
+                })
+                .catch(function() { if (resultsDiv) resultsDiv.style.display = 'none'; });
+        }, 300);
+    });
+
+    // Select autocomplete result
+    document.addEventListener('click', function(e) {
+        var link = e.target.closest('.autocomplete-results a');
+        if (!link) {
+            // Close all open autocomplete results
+            document.querySelectorAll('.autocomplete-results').forEach(function(d) { d.style.display = 'none'; });
+            return;
+        }
+        e.preventDefault();
+        var row = link.closest('.item-row');
+        if (!row) return;
+
+        var nameInput = row.querySelector('.item-name-input');
+        var hiddenId = row.querySelector('.inventory-item-id');
+        var unitInput = row.querySelector('input[name*="[unit]"]');
+
+        if (nameInput) nameInput.value = link.dataset.name;
+        if (hiddenId) hiddenId.value = link.dataset.id;
+        if (unitInput && link.dataset.unit) unitInput.value = link.dataset.unit;
+
+        link.closest('.autocomplete-results').style.display = 'none';
+    });
+
+})();
+</script>
+{% endblock %}

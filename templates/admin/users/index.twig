@@ -1,0 +1,172 @@
+{% extends 'layouts/app.twig' %}
+
+{% block title %}User Management — {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-users-cog me-2"></i>User Management</h2>
+        <a href="/admin/users/new" class="btn btn-primary">
+            <i class="fas fa-user-plus me-1"></i> Add User
+        </a>
+    </div>
+
+    {# ── Filters ── #}
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" action="/admin/users" class="row g-3 align-items-end">
+                <div class="col-md-3">
+                    <label class="form-label">Search</label>
+                    <input type="text" name="search" class="form-control" placeholder="Name or email..."
+                           value="{{ filters.search|default('') }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Role</label>
+                    <select name="role" class="form-select">
+                        <option value="">All Roles</option>
+                        <option value="personnel" {{ filters.role|default('') == 'personnel' ? 'selected' : '' }}>Personnel</option>
+                        <option value="staff" {{ filters.role|default('') == 'staff' ? 'selected' : '' }}>Staff</option>
+                        <option value="admin" {{ filters.role|default('') == 'admin' ? 'selected' : '' }}>Admin</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Status</label>
+                    <select name="is_active" class="form-select">
+                        <option value="">All</option>
+                        <option value="1" {{ filters.is_active|default('') == '1' ? 'selected' : '' }}>Active</option>
+                        <option value="0" {{ filters.is_active|default('') == '0' ? 'selected' : '' }}>Inactive</option>
+                    </select>
+                </div>
+                <div class="col-md-3 d-flex gap-2">
+                    <button type="submit" class="btn btn-outline-primary">
+                        <i class="fas fa-search me-1"></i> Filter
+                    </button>
+                    <a href="/admin/users" class="btn btn-outline-secondary">Clear</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {# ── User Table ── #}
+    <div class="card">
+        <div class="card-header">
+            <small class="text-muted">{{ total }} user(s) found</small>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>ID</th>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Role</th>
+                            <th>Status</th>
+                            <th>Email Verified</th>
+                            <th>2FA</th>
+                            <th>Last Login</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for u in users %}
+                            <tr class="{{ not u.is_active ? 'table-secondary' : '' }}">
+                                <td>{{ u.id }}</td>
+                                <td>
+                                    <a href="/admin/users/{{ u.id }}/edit" class="text-decoration-none fw-bold">{{ u.full_name }}</a>
+                                </td>
+                                <td>{{ u.email }}</td>
+                                <td>
+                                    {% set role_class = {'admin':'bg-danger','staff':'bg-warning text-dark','personnel':'bg-info'} %}
+                                    <span class="badge {{ role_class[u.role]|default('bg-secondary') }}">{{ u.role|capitalize }}</span>
+                                </td>
+                                <td>
+                                    {% if u.is_active %}
+                                        <span class="badge bg-success">Active</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Inactive</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if u.email_verified_at %}
+                                        <i class="fas fa-check-circle text-success" title="{{ u.email_verified_at }}"></i>
+                                    {% else %}
+                                        <i class="fas fa-times-circle text-muted"></i>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if u.two_factor_enabled %}
+                                        <i class="fas fa-shield-alt text-success"></i>
+                                    {% else %}
+                                        <i class="fas fa-shield-alt text-muted"></i>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if u.last_login_at %}
+                                        <small>{{ u.last_login_at|date('M d, Y g:i A') }}</small>
+                                    {% else %}
+                                        <small class="text-muted">Never</small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="/admin/users/{{ u.id }}/edit" class="btn btn-outline-primary" title="Edit">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        {% if u.is_active %}
+                                            <form method="post" action="/admin/users/{{ u.id }}/deactivate" class="d-inline">
+                                                {{ csrf_fields|raw }}
+                                                <button type="submit" class="btn btn-outline-danger" title="Deactivate"
+                                                        onclick="return confirm('Deactivate {{ u.full_name }}? Their open requests will be unassigned.')">
+                                                    <i class="fas fa-user-slash"></i>
+                                                </button>
+                                            </form>
+                                        {% else %}
+                                            <form method="post" action="/admin/users/{{ u.id }}/activate" class="d-inline">
+                                                {{ csrf_fields|raw }}
+                                                <button type="submit" class="btn btn-outline-success" title="Activate">
+                                                    <i class="fas fa-user-check"></i>
+                                                </button>
+                                            </form>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                        {% else %}
+                            <tr>
+                                <td colspan="9" class="text-center py-4 text-muted">No users found.</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    {# ── Pagination ── #}
+    {% if total_pages > 1 %}
+        {% set base_url = '/admin/users?' %}
+        {% for key, val in filters %}
+            {% set base_url = base_url ~ key ~ '=' ~ val|url_encode ~ '&' %}
+        {% endfor %}
+        <nav class="mt-4" aria-label="User list pagination">
+            <ul class="pagination justify-content-center">
+                <li class="page-item {{ current_page <= 1 ? 'disabled' : '' }}">
+                    <a class="page-link" href="{{ base_url }}page={{ current_page - 1 }}">Previous</a>
+                </li>
+                {% for p in 1..total_pages %}
+                    {% if p >= current_page - 2 and p <= current_page + 2 %}
+                        <li class="page-item {{ p == current_page ? 'active' : '' }}">
+                            <a class="page-link" href="{{ base_url }}page={{ p }}">{{ p }}</a>
+                        </li>
+                    {% endif %}
+                {% endfor %}
+                <li class="page-item {{ current_page >= total_pages ? 'disabled' : '' }}">
+                    <a class="page-link" href="{{ base_url }}page={{ current_page + 1 }}">Next</a>
+                </li>
+            </ul>
+        </nav>
+    {% endif %}
+</div>
+{% endblock %}

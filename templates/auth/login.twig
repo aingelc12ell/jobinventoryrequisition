@@ -1,0 +1,59 @@
+{% extends 'layouts/app.twig' %}
+
+{% block title %}Login{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center mt-5">
+    <div class="col-md-6 col-lg-4 mx-auto">
+        <div class="card shadow-sm">
+            <div class="card-header text-center">
+                <h4 class="mb-0">Sign In</h4>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="/login">
+                    {{ csrf_fields|raw }}
+
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Email Address</label>
+                        <input type="email"
+                               class="form-control"
+                               id="email"
+                               name="email"
+                               value="{{ old.email|default('') }}"
+                               required
+                               autofocus>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Password</label>
+                        <input type="password"
+                               class="form-control"
+                               id="password"
+                               name="password"
+                               required>
+                    </div>
+
+                    <div class="mb-3 form-check">
+                        <input type="checkbox"
+                               class="form-check-input"
+                               id="remember"
+                               name="remember">
+                        <label class="form-check-label" for="remember">Remember me</label>
+                    </div>
+
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary">Sign In</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="text-center mt-3">
+            <a href="/forgot-password">Forgot password?</a>
+        </div>
+        <div class="text-center mt-2">
+            <span>Don't have an account?</span> <a href="/register">Register</a>
+        </div>
+    </div>
+</div>
+{% endblock %}
